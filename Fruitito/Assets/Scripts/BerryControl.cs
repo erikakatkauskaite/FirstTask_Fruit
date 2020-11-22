@@ -1,22 +1,29 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Experimental.GlobalIllumination;
 
 public class BerryControl : MonoBehaviour
 {
+    public enum FruitType
+    {
+        Blueberry, Peach, Straweberry
+    }
+
+    [SerializeField]
+    private FruitType fruitType;
     private float startPositionX;
     private float startPositionY;
     private bool onHold = false;
-    private Vector2 initialPosition;
-    private Transform basketPlace;
-    Rigidbody2D rb;
-    
+    private Vector3 initialPosition;
+    private Collider2D basketCollider;
+
+    private const int BERRY_Z_POSITION  = 1;
+    private const string BASKET_LAYER   = "Basket";
+    private const string BASKET_NAME    = "Peach";
+
+
     private void Start()
     {
+        basketCollider = GameObject.FindGameObjectWithTag(BASKET_NAME).GetComponent<Collider2D>();
         initialPosition = transform.position;
-        basketPlace = GameObject.FindGameObjectWithTag("basket").GetComponent<Collider2D>().transform;
-        rb = GetComponent<Rigidbody2D>();
     }
 
     private void Update()
@@ -27,7 +34,7 @@ public class BerryControl : MonoBehaviour
             mousePosition = Input.mousePosition;
             mousePosition = Camera.main.ScreenToWorldPoint(mousePosition);
 
-            this.gameObject.transform.localPosition = new Vector3(mousePosition.x - startPositionX, mousePosition.y - startPositionY, 0);
+            gameObject.transform.localPosition = new Vector3(mousePosition.x - startPositionX, mousePosition.y - startPositionY, BERRY_Z_POSITION);
         }
     }
 
@@ -35,12 +42,12 @@ public class BerryControl : MonoBehaviour
     {
         if(Input.GetMouseButtonDown(0))
         {        
-            Vector3 mousePosition;
-            mousePosition = Input.mousePosition;
-            mousePosition = Camera.main.ScreenToWorldPoint(mousePosition);
+            Vector3 _mousePosition;
+            _mousePosition = Input.mousePosition;
+            _mousePosition = Camera.main.ScreenToWorldPoint(_mousePosition);
 
-            startPositionX = mousePosition.x - this.transform.localPosition.x;
-            startPositionY = mousePosition.y - this.transform.localPosition.y;
+            startPositionX = _mousePosition.x - this.transform.localPosition.x;
+            startPositionY = _mousePosition.y - this.transform.localPosition.y;
 
             onHold = true;
         }        
@@ -48,30 +55,28 @@ public class BerryControl : MonoBehaviour
 
     private void OnMouseUp()
     {
-        if(transform.position.y >0.4)
-        {
-             if (Mathf.Abs(transform.position.x - basketPlace.position.x) <= 0.7f && (Mathf.Abs(transform.position.y - basketPlace.position.y) <= 3f))
-            {
-                rb.bodyType = RigidbodyType2D.Dynamic;
-            }
-            else
-            {
-                transform.position = new Vector2(initialPosition.x, initialPosition.y);
-            }
-        }
-        
-        else
-        {
-            transform.position = new Vector2(initialPosition.x, initialPosition.y); 
-        }
         onHold = false;
+        Collider2D collider = Physics2D.OverlapCircle(transform.position, basketCollider.bounds.extents.x, LayerMask.GetMask(BASKET_LAYER));
+
+        if(collider != null)
+        {
+            Basket _foundBasket = collider.GetComponent<Basket>();
+
+            if (_foundBasket != null)
+            {
+                if (fruitType == _foundBasket.basketFruitType)
+                {
+                    _foundBasket.AddBerry();
+                    GameManager.Instance.CheckIfWon();
+                    Destroy(this.gameObject);
+                }
+            }
+        }
+        ReturnBerry();
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+    private void ReturnBerry()
     {
-        if(collision.gameObject.CompareTag("basket"))
-        {
-            Destroy(this.gameObject);
-        }     
+        transform.position = new Vector3(initialPosition.x, initialPosition.y, BERRY_Z_POSITION);
     }
 }
